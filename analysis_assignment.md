@@ -1,6 +1,6 @@
 ‘Downstream’ Analysis: from counts to Differential Expression
 ================
-Your name here
+Cindy(Xiao Yu) Zhang
 
 **Reminder:** When answering the questions, it is not sufficient to
 provide only code. Add explanatory text to interpret your results
@@ -51,7 +51,10 @@ additional libraries as needed for the rest of the analyses.
 library(recount)
 library(openxlsx)
 library(tidyverse)
+library(limma)
 library(edgeR)
+library(pheatmap)
+library(knitr)
 ```
 
 ### Question 1: Importing the data and getting familiar with it (3 POINTS)
@@ -68,7 +71,7 @@ here.
 download_study(project = "SRP043008")
 ```
 
-    ## 2023-02-12 14:03:15 downloading file rse_gene.Rdata to SRP043008
+    ## 2023-02-17 13:58:52 downloading file rse_gene.Rdata to SRP043008
 
 ``` r
 load(file.path("SRP043008", "rse_gene.Rdata"))
@@ -88,13 +91,25 @@ A. Investigate the object just loaded. How many genes are there? (0.5
 pt)
 
 ``` r
-# your code here
+length(unique(rownames(rse_gene)))
+```
+
+    ## [1] 58037
+
+``` r
+# 58037 genes  
 ```
 
 B. How many samples are there? (0.5 pt)
 
 ``` r
-# your code here
+length(unique(colnames(rse_gene)))
+```
+
+    ## [1] 27
+
+``` r
+# 27 samples 
 ```
 
 Here, we convert the `RangedSummarizedExperiment` object into a
@@ -132,16 +147,60 @@ stored - analogous to `colData()` for a `SummarizedExperiment`). HINT:
 perform a join operation by sample id (beginning with “SRR”). (1 pt)
 
 ``` r
-# your code here
+# Assess if the number of samples in metadata is the same as number of samples in the sample metadata in dge object which is corresponding to the samples in count in dge object
+ 
+length(mdat$sample) - length(dge$samples$sample)
+```
+
+    ## [1] 8
+
+``` r
+# 8 more samples were found in metadata without count information 
+```
+
+``` r
+# the below line combines the metadata to dge$samples by keeping every record in dge$samples. Some of the samples metadata
+dge$samples <- left_join(dge$samples, mdat, by="sample") 
 ```
 
 D. How many variables of interest are in our experimental design? Are
 these factors (categorical) or continuous? If factors, how many levels
 are there? List out the levels for each factor. (1 pt)
 
+- 3 variables of interest are in the experimental design: developmental
+  stage in (hours post infection or hpi), infection status and batch.
+  The hpi is categorical but in later step of this assignment we convert
+  it into a continuous variable. The infection status and batch are both
+  categorical variables with 2 and 5 levels, respectively.
+
 ``` r
-# your code here
+# Levels of infection status 
+table(dge$samples$Infected)
 ```
+
+    ## 
+    ##  N  Y 
+    ##  9 18
+
+``` r
+# Levels of developmental stage
+table(dge$samples$Developmental.stage)
+```
+
+    ## 
+    ##  Amastigote 12hr  Amastigote 24hr Amastigote 4 hpi  Amastigote 48hr 
+    ##                3                4                4                7 
+    ##   Amastigote 6hr  Amastigote 72hr 
+    ##                4                5
+
+``` r
+# Levels of batch
+table(dge$samples$Batch)
+```
+
+    ## 
+    ##  A  B  C  D  E 
+    ## 10  4  5  6  2
 
 ### Question 2: Remove lowly expressed genes (2 POINTS)
 
@@ -149,13 +208,76 @@ A. Remove lowly expressed genes by retaining genes that have CPM $>$ 1
 in at least 25% of samples. (1 pt)
 
 ``` r
-# your code here
+# make a filtered dge_count named dge2 to store the cpm normalized counts
+dge2 <- cpm(dge$counts)
+
+threshold <- dge2 >1
+
+head(threshold)  
+```
+
+    ##                    SRR1346026 SRR1346027 SRR1346028 SRR1346029 SRR1346030
+    ## ENSG00000000003.14       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000005.5       FALSE      FALSE      FALSE      FALSE      FALSE
+    ## ENSG00000000419.12       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000457.13       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000460.16       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000938.12      FALSE      FALSE      FALSE      FALSE      FALSE
+    ##                    SRR1346031 SRR1346032 SRR1346033 SRR1346034 SRR1346035
+    ## ENSG00000000003.14       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000005.5       FALSE      FALSE      FALSE      FALSE      FALSE
+    ## ENSG00000000419.12       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000457.13       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000460.16       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000938.12      FALSE      FALSE      FALSE      FALSE      FALSE
+    ##                    SRR1346036 SRR1346037 SRR1346038 SRR1346039 SRR1346040
+    ## ENSG00000000003.14       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000005.5       FALSE      FALSE      FALSE      FALSE      FALSE
+    ## ENSG00000000419.12       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000457.13       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000460.16       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000938.12      FALSE      FALSE      FALSE      FALSE      FALSE
+    ##                    SRR1346041 SRR1346042 SRR1346043 SRR1346044 SRR1346045
+    ## ENSG00000000003.14       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000005.5       FALSE      FALSE      FALSE      FALSE      FALSE
+    ## ENSG00000000419.12       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000457.13       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000460.16       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000938.12      FALSE      FALSE      FALSE      FALSE      FALSE
+    ##                    SRR1346046 SRR1346047 SRR1346049 SRR1346048 SRR1346050
+    ## ENSG00000000003.14       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000005.5       FALSE      FALSE      FALSE      FALSE      FALSE
+    ## ENSG00000000419.12       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000457.13       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000460.16       TRUE       TRUE       TRUE       TRUE       TRUE
+    ## ENSG00000000938.12      FALSE      FALSE      FALSE      FALSE      FALSE
+    ##                    SRR1346051 SRR1346052
+    ## ENSG00000000003.14       TRUE       TRUE
+    ## ENSG00000000005.5       FALSE      FALSE
+    ## ENSG00000000419.12       TRUE       TRUE
+    ## ENSG00000000457.13       TRUE       TRUE
+    ## ENSG00000000460.16       TRUE       TRUE
+    ## ENSG00000000938.12      FALSE      FALSE
+
+``` r
+# we would keep genes that have CPM >1 in at least 25%x27=6.75 of samples (i.e. 7 and above)
+
+keep <- rowSums(threshold) > 6.75 
+
+dge <- dge[keep,] 
+# dge now contains only the non-lowly expressed genes in their count table 
 ```
 
 B. How many genes are there after filtering? (1 pt)
 
 ``` r
-# your code here
+length(keep)
+```
+
+    ## [1] 58037
+
+``` r
+# 16681 genes were left after filtering. 
 ```
 
 ### Question 3: Data wrangling (2 POINTS)
@@ -165,13 +287,31 @@ points - these can be thought of as categorical or on a continous axis.
 In order to make graphing easier, it will be helpful to convert this
 variable to a numeric representation.
 
-Create a new column in the samples metadata tibble. Call it “hpi” (which
-stands for hours post infection) and populate it with the appropriate
-numeric values.
+Create a new column in the *samples metadata* tibble. Call it “hpi”
+(which stands for hours post infection) and populate it with the
+appropriate numeric values.
 
 ``` r
-# your code here
+# This code replace the non-numeric character with nothing i.e. take out.  
+dge$samples$hpi <- gsub("[^0-9]", "", dge$samples$Developmental.stage) %>%
+  as.numeric()
+
+#Alternatively, this is what we learn from class
+dge$samples <- dge$samples %>% 
+  mutate(hpi = case_when(
+    grepl("Amastigote 4 hpi", Developmental.stage) ~ 4,
+    grepl("Amastigote 6hr", Developmental.stage)~ 6,
+    grepl("Amastigote 12hr", Developmental.stage)~ 12,
+    grepl("Amastigote 24hr", Developmental.stage) ~ 24,
+    grepl("Amastigote 48hr", Developmental.stage) ~ 48,
+    grepl("Amastigote 72hr", Developmental.stage) ~ 72,
+  ))
+
+as.numeric(dge$samples$hpi)
 ```
+
+    ##  [1]  4  4  4  4  6  6  6  6 12 12 12 24 24 24 24 48 48 48 48 48 48 48 72 72 72
+    ## [26] 72 72
 
 Remove the `eval=FALSE` tag in the next chunk so that you can check that
 your added variable looks as expected.
@@ -179,8 +319,30 @@ your added variable looks as expected.
 ``` r
 # check the result
 table(dge$samples$hpi, dge$samples$Developmental.stage)
+```
+
+    ##     
+    ##      Amastigote 12hr Amastigote 24hr Amastigote 4 hpi Amastigote 48hr
+    ##   4                0               0                4               0
+    ##   6                0               0                0               0
+    ##   12               3               0                0               0
+    ##   24               0               4                0               0
+    ##   48               0               0                0               7
+    ##   72               0               0                0               0
+    ##     
+    ##      Amastigote 6hr Amastigote 72hr
+    ##   4               0               0
+    ##   6               4               0
+    ##   12              0               0
+    ##   24              0               0
+    ##   48              0               0
+    ##   72              0               5
+
+``` r
 class(dge$samples$hpi)
 ```
+
+    ## [1] "numeric"
 
 ### Question 4: Assessing overall distributions (4 POINTS)
 
@@ -188,7 +350,7 @@ A. The expression values are raw counts. Calculate TMM normalization
 factors (and add them to your `DGEList` object). (1 pt)
 
 ``` r
-# your code here
+dge$TMMNormalized.factors <-  calcNormFactors(dge$counts, method = "TMM")
 ```
 
 B. Examine the distribution of gene expression on the scale of
@@ -204,8 +366,23 @@ the x-axis and expression on the y-axis). (1 pt)
   tidy format (with one row per gene and sample combination).
 
 ``` r
-# your code here
+dge$log2cpm <- cpm(dge$counts, log=TRUE, prior.count=1)%>% as.data.frame()
+
+
+dge$log2cpm <- dge$log2cpm %>% 
+  as.data.frame() %>% 
+  rownames_to_column("gene") %>% 
+  pivot_longer(cols = 2:ncol(.), 
+               values_to = "log2cpm",
+               names_to = "sample" ) 
+
+ggplot(data = dge$log2cpm, aes(x = sample, y = log2cpm, color = sample)) +
+  geom_boxplot() + 
+  labs(x="Sample", y = "log2(CPM+1) gene expession counts", color = "sample" ) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
+
+![](analysis_assignment_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 C. Examine the distribution of gene expression in units of
 $\sf{log_{2}}$ CPM across all samples using overlapping density plots
@@ -213,11 +390,20 @@ $\sf{log_{2}}$ CPM across all samples using overlapping density plots
 per sample and lines coloured by sample). (1 pt)
 
 ``` r
-# your code here
+dge$log2cpm %>% 
+  ggplot(aes(x = log2cpm, color = sample)) + 
+  geom_density() +
+  theme(axis.text.x = element_text(angle=90, hjust=1))
 ```
+
+![](analysis_assignment_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 D. Which sample stands out as different, in terms of the distribution of
 expression values, compared to the rest? (1 pt)
+
+The distribution of **SRR1346028** stands out in that it has a mean
+expression lower than other samples and more data found below -2.4 and
+less above 10 $log_2$(CPM+1)compared to other samples.
 
 ### Question 5: Single gene graphing (3 POINTS)
 
@@ -228,12 +414,32 @@ y-axis. Color the data points by infection status, and add in a
 regression line for each one. (2 pt)
 
 ``` r
-# your code here
+geneID <- "ENSG00000089127.12"
+ 
+expressionDataForGene <- dge$log2cpm %>% 
+  filter(gene == geneID)
+#integrate the sample metadata 
+
+expressionDataForGene <- expressionDataForGene %>% left_join(dge$samples[,c("sample", "hpi", "Infected")], by = "sample") 
+
+ggplot(data = expressionDataForGene, aes(x = hpi, y = log2cpm, color=Infected)) +
+  geom_point() +
+  geom_smooth(method="lm")+
+  labs(x = "hours post infection", y = "log2(CPM+1) gene expression counts")
 ```
+
+    ## `geom_smooth()` using formula = 'y ~ x'
+
+![](analysis_assignment_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 
 B. Is there sign of interaction between infection status and hours post
 infection for **OAS**? Explain using what you observed in your graph
-from the previous question. (1 pt)
+from the previous question. (1 pt) \*\* Yes. there appears to be an
+interaction betwween infection status and hpi since the two regression
+lines are not parallel to each other. The log2(CPM + 1) normalized gene
+expression counts appear to increase with hours post infection in
+infected individuals while this not apparent in noninfected individuals
+\*\*
 
 ### Question 6: How do the samples correlate with one another? (4 POINTS)
 
@@ -247,8 +453,21 @@ infection status (`Infected`) for each sample in the heatmap. (2 pt)
   correlate gene expression between each pair of samples.
 
 ``` r
-# your code here
+# correlation function corr() takes matrix as an input. 
+
+dge3 <- cpm(dge$counts, log=TRUE, prior.count=1)
+corr <- cor(dge3)
+
+# make annotation columns
+set.seed(4)
+annot <- dge$samples[,c("Batch", "Infected", "hpi")]
+# be sure to assign rowname for the annotation table
+rownames(annot) <- colnames(corr)
+
+pheatmap(corr, annotation_col = annot, cluster_rows = TRUE )
 ```
+
+![](analysis_assignment_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
 
 B. Among the variables `Batch`, `hpi`, and `Infected`, which one seems
 to be most strongly correlated with clusters in gene expression data? (1
@@ -256,9 +475,15 @@ pt)
 
 - Hint: Consider using ‘cluster_rows=TRUE’ in `pheatmap()`.
 
+The infection Status (labeled as “infected”) appears to have the
+strongest correlation with the clusters in gene expression data.All the
+clusters seem to be composed mostly of
+
 C. There is a sample whose expression values do not correlate as highly
 with other samples of the same `hpi`, and in general. Identify this
 sample by its ID. (1 pt)
+
+\*\* SRR1346028 \*\*
 
 ### Question 7: Construct linear model for Differential expression analysis (4 POINTS)
 
@@ -272,22 +497,174 @@ mean-variance trend plot. (2 pt)
   internally).
 
 ``` r
-# your code here
+#Setting up model design matrix
+modm <- model.matrix(~ hpi*Infected, data = dge$samples)
+head(modm) %>% kable()
 ```
+
+| (Intercept) | hpi | InfectedY | hpi:InfectedY |
+|------------:|----:|----------:|--------------:|
+|           1 |   4 |         0 |             0 |
+|           1 |   4 |         1 |             4 |
+|           1 |   4 |         1 |             4 |
+|           1 |   4 |         1 |             4 |
+|           1 |   6 |         0 |             0 |
+|           1 |   6 |         1 |             6 |
+
+``` r
+#estimate voom weights and plot Median-Variance trend
+vw <- voom(dge$counts, 
+           design = modm, plot = TRUE, span = 0.5)
+```
+
+![](analysis_assignment_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
 
 B. Use limma (`lmFit` and `eBayes`) to fit the linear model with the
 model matrix you just created. (1 pt)
 
 ``` r
-# your code here
+# Fitting weighted limma
+lvfit <- lmFit(vw, model.matrix(~ hpi*Infected, data = dge$samples))
+#Empirical Bayes moderated variances 
+lvfitEb <- eBayes(lvfit) 
+lvfitEb
 ```
+
+    ## An object of class "MArrayLM"
+    ## $coefficients
+    ##                    (Intercept)          hpi   InfectedY hpi:InfectedY
+    ## ENSG00000000003.14    3.986061  0.008994954  0.01441368 -0.0026460863
+    ## ENSG00000000419.12    4.993796 -0.006361967  0.13541544 -0.0007212984
+    ## ENSG00000000457.13    3.651646  0.004161519  0.03496702 -0.0018142264
+    ## ENSG00000000460.16    3.981949 -0.022144655  0.11100895  0.0037317870
+    ## ENSG00000000971.15    4.030741  0.033436652 -0.15590418  0.0165051686
+    ## 16676 more rows ...
+    ## 
+    ## $stdev.unscaled
+    ##                    (Intercept)         hpi InfectedY hpi:InfectedY
+    ## ENSG00000000003.14   0.1488954 0.003241335 0.1722719   0.004010659
+    ## ENSG00000000419.12   0.1356595 0.003079579 0.1574488   0.003810808
+    ## ENSG00000000457.13   0.1566672 0.003453902 0.1809216   0.004270221
+    ## ENSG00000000460.16   0.1574838 0.003777046 0.1808903   0.004651308
+    ## ENSG00000000971.15   0.1430559 0.003024213 0.1654742   0.003659308
+    ## 16676 more rows ...
+    ## 
+    ## $sigma
+    ## [1] 0.6329772 1.0992769 0.5201693 0.9580515 1.8784465
+    ## 16676 more elements ...
+    ## 
+    ## $df.residual
+    ## [1] 23 23 23 23 23
+    ## 16676 more elements ...
+    ## 
+    ## $cov.coefficients
+    ##                (Intercept)           hpi    InfectedY hpi:InfectedY
+    ## (Intercept)    0.354572596 -0.0065603394 -0.354572596  0.0065603394
+    ## hpi           -0.006560339  0.0001767756  0.006560339 -0.0001767756
+    ## InfectedY     -0.354572596  0.0065603394  0.489431730 -0.0092334937
+    ## hpi:InfectedY  0.006560339 -0.0001767756 -0.009233494  0.0002668819
+    ## 
+    ## $pivot
+    ## [1] 1 2 3 4
+    ## 
+    ## $rank
+    ## [1] 4
+    ## 
+    ## $Amean
+    ## ENSG00000000003.14 ENSG00000000419.12 ENSG00000000457.13 ENSG00000000460.16 
+    ##           4.232993           4.874533           3.775838           3.427212 
+    ## ENSG00000000971.15 
+    ##           5.326156 
+    ## 16676 more elements ...
+    ## 
+    ## $method
+    ## [1] "ls"
+    ## 
+    ## $design
+    ##   (Intercept) hpi InfectedY hpi:InfectedY
+    ## 1           1   4         0             0
+    ## 2           1   4         1             4
+    ## 3           1   4         1             4
+    ## 4           1   4         1             4
+    ## 5           1   6         0             0
+    ## 22 more rows ...
+    ## 
+    ## $df.prior
+    ## [1] 3.845324
+    ## 
+    ## $s2.prior
+    ## [1] 0.8175061
+    ## 
+    ## $var.prior
+    ## [1] 19.57172048  0.01223233  1.40750072  0.01223233
+    ## 
+    ## $proportion
+    ## [1] 0.01
+    ## 
+    ## $s2.post
+    ## [1] 0.4603692 1.1524166 0.3489183 0.9034876 3.1402297
+    ## 16676 more elements ...
+    ## 
+    ## $t
+    ##                    (Intercept)       hpi  InfectedY hpi:InfectedY
+    ## ENSG00000000003.14    39.45569  4.089987  0.1233126    -0.9723779
+    ## ENSG00000000419.12    34.29065 -1.924400  0.8011691    -0.1763166
+    ## ENSG00000000457.13    39.45925  2.039764  0.3271948    -0.7192490
+    ## ENSG00000000460.16    26.60104 -6.168158  0.6456268     0.8440742
+    ## ENSG00000000971.15    15.90005  6.239212 -0.5316755     2.5453080
+    ## 16676 more rows ...
+    ## 
+    ## $df.total
+    ## [1] 26.84532 26.84532 26.84532 26.84532 26.84532
+    ## 16676 more elements ...
+    ## 
+    ## $p.value
+    ##                     (Intercept)          hpi InfectedY hpi:InfectedY
+    ## ENSG00000000003.14 2.620530e-25 3.517564e-04 0.9027782    0.33954321
+    ## ENSG00000000419.12 1.055265e-23 6.496473e-02 0.4300681    0.86136861
+    ## ENSG00000000457.13 2.614285e-25 5.132646e-02 0.7460583    0.47820242
+    ## ENSG00000000460.16 7.966561e-21 1.393664e-06 0.5240017    0.40608715
+    ## ENSG00000000971.15 3.489667e-15 1.157894e-06 0.5993233    0.01698039
+    ## 16676 more rows ...
+    ## 
+    ## $lods
+    ##                    (Intercept)       hpi InfectedY hpi:InfectedY
+    ## ENSG00000000003.14    47.89570 -1.389439 -6.527421     -7.431452
+    ## ENSG00000000419.12    44.29548 -6.378917 -6.300200     -7.947696
+    ## ENSG00000000457.13    47.85741 -6.058037 -6.433064     -7.584775
+    ## ENSG00000000460.16    37.68261  4.292843 -6.277774     -7.400744
+    ## ENSG00000000971.15    24.46388  4.266526 -6.431561     -4.998132
+    ## 16676 more rows ...
+    ## 
+    ## $F
+    ## [1] 4223.192 2680.360 3983.880 1306.902 1143.120
+    ## 16676 more elements ...
+    ## 
+    ## $F.p.value
+    ## [1] 3.813902e-37 1.682491e-34 8.333601e-37 2.493519e-30 1.488658e-29
+    ## 16676 more elements ...
 
 C. Print the 10 top-ranked genes by adjusted p-value for the
 `hpi:InfectedY` coefficient using `topTable` (1 pt)
 
 ``` r
-# your code here
+#use signif to round off floats
+signif(topTable(lvfitEb, coef= "hpi:InfectedY", sort.by= "p", number = 10),3) %>% 
+  kable()
 ```
+
+|                    |  logFC | AveExpr |    t | P.Value | adj.P.Val |    B |
+|:-------------------|-------:|--------:|-----:|--------:|----------:|-----:|
+| ENSG00000103966.10 | 0.0337 |   6.400 | 7.15 | 1.0e-07 |  0.000967 | 6.75 |
+| ENSG00000204520.12 | 0.0128 |   5.330 | 7.05 | 1.0e-07 |  0.000967 | 6.54 |
+| ENSG00000137285.9  | 0.0523 |   6.030 | 6.98 | 2.0e-07 |  0.000967 | 6.35 |
+| ENSG00000137267.5  | 0.0432 |   6.600 | 6.74 | 3.0e-07 |  0.001140 | 5.71 |
+| ENSG00000281028.1  | 0.0334 |   4.600 | 6.71 | 3.0e-07 |  0.001140 | 5.77 |
+| ENSG00000147509.13 | 0.0469 |   0.807 | 6.52 | 6.0e-07 |  0.001340 | 5.80 |
+| ENSG00000272921.1  | 0.0192 |   4.750 | 6.52 | 6.0e-07 |  0.001340 | 5.23 |
+| ENSG00000038210.12 | 0.0319 |   5.600 | 6.27 | 1.1e-06 |  0.002040 | 4.51 |
+| ENSG00000002549.12 | 0.0545 |   6.620 | 6.22 | 1.2e-06 |  0.002040 | 4.36 |
+| ENSG00000139531.12 | 0.0191 |   4.090 | 6.22 | 1.2e-06 |  0.002040 | 4.50 |
 
 ### Question 8: Interpret model (2 POINTS)
 
@@ -297,8 +674,25 @@ this value in terms of the effect of time on expression? Be sure to
 include units and indicate which samples this applies to.
 
 ``` r
-# your code here
+# If coef is supplied, then only shows the actual coefficeint will be omitted
+topTable(lvfitEb,number = Inf) %>% 
+  rownames_to_column(var = "gene")%>% 
+  filter(grepl("ENSG00000117399", gene)) %>% 
+  kable()
 ```
+
+    ## Removing intercept from test coefficients
+
+| gene               |        hpi | InfectedY | hpi.InfectedY |  AveExpr |        F | P.Value | adj.P.Val |
+|:-------------------|-----------:|----------:|--------------:|---------:|---------:|--------:|----------:|
+| ENSG00000117399.13 | -0.0696882 | 0.0247503 |     0.0177337 | 5.627441 | 55.03318 |       0 |         0 |
+
+- The coefficient of the hpi term is negative: \$-0.0696882. For
+  non-infected samples, with one unit of hpi change (in hour), the
+  normalized expression of the \_CDC20_gene (in log2(CPM+1)) will be
+  decreased by 0.0696882. For infected samples, with one unit of hpi
+  change (in hour), the normalized expression of the \_CDC20_gene (in
+  log2(CPM+1)) will be increased by 0.0177337.
 
 ### Question 9: Quantify the number of genes differentially expressed (3 POINTS)
 
@@ -310,13 +704,27 @@ FDR (use adjust.method = “fdr” in `topTable`) less than 0.05.
   involving infection status are equal to zero.
 
 ``` r
-# your code here
+# look for genes where coefficients for infection status are statistically significant after adjusting for multi-testing
+
+topTable(lvfitEb, number = Inf, coef = c("hpi:InfectedY", "InfectedY"), adjust.method = "fdr", p.value = 0.05) %>% 
+  nrow()
 ```
+
+    ## [1] 1809
 
 ### Question 10: Interpret the interaction term (3 POINTS)
 
 Explain what you are modeling with the interaction term. For a
-particular gene, what does a signifcant interaction term mean?
+particular gene, what does a significant interaction term mean?
+
+- With the interaction term hpi:infectedY, I am modeling the conditional
+  effect of infection status conditioned on the effect of hpi. This
+  means that the slope of hpi is dependent on the sample’s infection
+  status.
+
+- A significant interaction term for a particular gene means that the
+  effects of hpi on expression of this particular gene are different
+  between an infected and uninfected sample.
 
 ### **Bonus Question** (2 POINTS - extra credit)
 
@@ -324,3 +732,15 @@ Compare your DE results to those obtained by [Li et
 al. (2016)](https://journals.plos.org/plospathogens/article?id=10.1371/journal.ppat.1005511).
 Discuss any discrepancies. List at least three explanations for these
 discrepancies.
+
+- The original paper included Batch as a covariate but we did not in
+  this analysis.
+- The original paper also included a filter for logFC when defining
+  significance but we did not.
+- The paper used Storey’s q-values instead of BH/FDR for multiple
+  testing correction.
+- The paper adjusted for uninfected by subtracting counts rather than
+  including infection status as a covariate as in our analysis here.
+- The paper treated hpi as a categorical variable and reported DE genes
+  for each time point separately, while we considered hpi a continuous
+  variable

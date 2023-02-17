@@ -1,6 +1,6 @@
 ---
 title: "'Downstream' Analysis: from counts to Differential Expression" 
-author: "Your name here"
+author: "Cindy(Xiao Yu) Zhang"
 output: github_document
 ---
 
@@ -24,7 +24,10 @@ Note: only a few libraries are provided for the initial steps; add additional li
 library(recount)
 library(openxlsx)
 library(tidyverse)
+library(limma)
 library(edgeR)
+library(pheatmap)
+library(knitr)
 ```
 
 ### Question 1: Importing the data and getting familiar with it (3 POINTS)
@@ -47,13 +50,15 @@ colnames(rse_gene) <- colData(rse_gene)$sample
 A. Investigate the object just loaded. How many genes are there? (0.5 pt)
 
 ```{r}
-# your code here
+length(unique(rownames(rse_gene)))
+# 58037 genes  
 ```
 
 B. How many samples are there? (0.5 pt)
 
 ```{r}
-# your code here
+length(unique(colnames(rse_gene)))
+# 27 samples 
 ```
 
 Here, we convert the `RangedSummarizedExperiment` object into a [`DGEList`](https://rdrr.io/bioc/edgeR/man/DGEList.html) object (for use with `limma` and/or `edgeR`). As we discussed in lecture, this format is similar to `SummarizedExperiment`, but has some special slots, including one for normalization factors, that are important for methods like `limma` and `edgeR`. We'll include the `colData` of the `RangedSummarizedExperiment` object as the `samples` data.frame in the `DGEList`. Note there's nothing you need to add here.
@@ -73,14 +78,33 @@ mdat <- read.xlsx("https://journals.plos.org/plospathogens/article/file?type=sup
 
 C. Subset the metadata to include only those samples that we have gene counts for (Table S1 also includes the non-host (non-human) samples), and add this information to the `samples` slot of the `DGEList` object (the `samples` slot of the `DGEList` is where the sample metadata is stored - analogous to `colData()` for a `SummarizedExperiment`). HINT: perform a join operation by sample id (beginning with "SRR"). (1 pt)
 
+```{r included=FALSE}
+# Assess if the number of samples in metadata is the same as number of samples in the sample metadata in dge object which is corresponding to the samples in count in dge object
+ 
+length(mdat$sample) - length(dge$samples$sample)
+
+# 8 more samples were found in metadata without count information 
+```
+
 ```{r}
-# your code here
+
+# the below line combines the metadata to dge$samples by keeping every record in dge$samples. Some of the samples metadata
+dge$samples <- left_join(dge$samples, mdat, by="sample") 
 ```
 
 D. How many variables of interest are in our experimental design? Are these factors (categorical) or continuous? If factors, how many levels are there? List out the levels for each factor. (1 pt)
 
+* 3 variables of interest are in the experimental design: developmental stage in (hours post infection or hpi), infection status and batch. The hpi is categorical but in later step of this assignment we convert it into a continuous variable. The infection status and batch are both categorical variables with 2 and 5 levels, respectively.  
+
 ```{r}
-# your code here
+ 
+# Levels of infection status 
+table(dge$samples$Infected)
+# Levels of developmental stage
+table(dge$samples$Developmental.stage)
+# Levels of batch
+table(dge$samples$Batch)
+
 ```
 
 
@@ -89,28 +113,57 @@ D. How many variables of interest are in our experimental design? Are these fact
 A. Remove lowly expressed genes by retaining genes that have CPM $>$ 1 in at least 25% of samples. (1 pt)
 
 ```{r}
-# your code here
+# make a filtered dge_count named dge2 to store the cpm normalized counts
+dge2 <- cpm(dge$counts)
+
+threshold <- dge2 >1
+
+head(threshold)  
+# we would keep genes that have CPM >1 in at least 25%x27=6.75 of samples (i.e. 7 and above)
+
+keep <- rowSums(threshold) > 6.75 
+
+dge <- dge[keep,] 
+# dge now contains only the non-lowly expressed genes in their count table 
+
 ```
 
 B. How many genes are there after filtering? (1 pt)
 
 ```{r}
-# your code here
+length(keep)
+# 16681 genes were left after filtering. 
 ```
 
 ### Question 3: Data wrangling (2 POINTS)
 
 The different character values of `Developmental.stage` refer to time points - these can be thought of as categorical or on a continous axis. In order to make graphing easier, it will be helpful to convert this variable to a numeric representation.
 
-Create a new column in the samples metadata tibble. Call it "hpi" (which stands for hours post infection) and populate it with the appropriate numeric values.
+Create a new column in the *samples metadata* tibble. Call it "hpi" (which stands for hours post infection) and populate it with the appropriate numeric values.
 
 ```{r}
-# your code here
+# This code replace the non-numeric character with nothing i.e. take out.  
+dge$samples$hpi <- gsub("[^0-9]", "", dge$samples$Developmental.stage) %>%
+  as.numeric()
+
+#Alternatively, this is what we learn from class
+dge$samples <- dge$samples %>% 
+  mutate(hpi = case_when(
+    grepl("Amastigote 4 hpi", Developmental.stage) ~ 4,
+    grepl("Amastigote 6hr", Developmental.stage)~ 6,
+    grepl("Amastigote 12hr", Developmental.stage)~ 12,
+    grepl("Amastigote 24hr", Developmental.stage) ~ 24,
+    grepl("Amastigote 48hr", Developmental.stage) ~ 48,
+    grepl("Amastigote 72hr", Developmental.stage) ~ 72,
+  ))
+
+as.numeric(dge$samples$hpi)
+
 ```
 
 Remove the `eval=FALSE` tag in the next chunk so that you can check that your added variable looks as expected.
 
-```{r, eval=FALSE}
+```{r}
 # check the result
 table(dge$samples$hpi, dge$samples$Developmental.stage)
 class(dge$samples$hpi)
@@ -122,7 +175,7 @@ class(dge$samples$hpi)
 A. The expression values are raw counts. Calculate TMM normalization factors (and add them to your `DGEList` object). (1 pt)
 
 ```{r}
-# your code here
+dge$TMMNormalized.factors <-  calcNormFactors(dge$counts, method = "TMM")
 ```
 
 
@@ -132,29 +185,60 @@ B. Examine the distribution of gene expression on the scale of $\sf{log_{2}}$ CP
   * Hint 2: To get the data in a format amenable to plotting with ggplot, some data manipulation steps are required. Take a look at the `pivot_longer` function in the tidyr package to first get the data in tidy format (with one row per gene and sample combination).
 
 ```{r}
-# your code here
+dge$log2cpm <- cpm(dge$counts, log=TRUE, prior.count=1)%>% as.data.frame()
+
+
+dge$log2cpm <- dge$log2cpm %>% 
+  as.data.frame() %>% 
+  rownames_to_column("gene") %>% 
+  pivot_longer(cols = 2:ncol(.), 
+               values_to = "log2cpm",
+               names_to = "sample" ) 
+
+ggplot(data = dge$log2cpm, aes(x = sample, y = log2cpm, color = sample)) +
+  geom_boxplot() + 
+  labs(x="Sample", y = "log2(CPM+1) gene expession counts", color = "sample" ) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
 ```
 
 C. Examine the distribution of gene expression in units of $\sf{log_{2}}$ CPM across all samples using overlapping density plots (with expression on the x-axis and density on the y-axis; with one line per sample and lines coloured by sample). (1 pt)
   
 ```{r}
-# your code here
+dge$log2cpm %>% 
+  ggplot(aes(x = log2cpm, color = sample)) + 
+  geom_density() +
+  theme(axis.text.x = element_text(angle=90, hjust=1))
+
 ```
 
 D. Which sample stands out as different, in terms of the distribution of expression values, compared to the rest? (1 pt)
 
-
+The distribution of **SRR1346028** stands out in that it has a mean expression lower than other samples and more data found below -2.4 and less above 10 $log_2$(CPM+1)compared to other samples. 
 
 ### Question 5: Single gene graphing (3 POINTS)
 
 A. Find the expression profile for the gene *OAS* (Ensembl ID ENSG00000089127). Make a scatterplot with (numeric) hours post-infection (`hpi`) on the x-axis and expression value in log2(CPM + 1) on the y-axis. Color the data points by infection status, and add in a regression line for each one. (2 pt)
 
 ```{r}
-# your code here
+
+geneID <- "ENSG00000089127.12"
+ 
+expressionDataForGene <- dge$log2cpm %>% 
+  filter(gene == geneID)
+#integrate the sample metadata 
+
+expressionDataForGene <- expressionDataForGene %>% left_join(dge$samples[,c("sample", "hpi", "Infected")], by = "sample") 
+
+ggplot(data = expressionDataForGene, aes(x = hpi, y = log2cpm, color=Infected)) +
+  geom_point() +
+  geom_smooth(method="lm")+
+  labs(x = "hours post infection", y = "log2(CPM+1) gene expression counts")
+
 ```
 
 B. Is there sign of interaction between infection status and hours post infection for **OAS**? Explain using what you observed in your graph from the previous question. (1 pt)
-
+** Yes. there appears to be an interaction betwween infection status and hpi since the two regression lines are not parallel to each other. The log2(CPM + 1) normalized gene expression counts appear to increase with hours post infection in infected individuals while this not apparent in noninfected individuals **
 
 ### Question 6: How do the samples correlate with one another? (4 POINTS)
 
@@ -163,15 +247,30 @@ A. Examine the correlation **between samples** using a heatmap with samples on t
   * Hint: Consider using `pheatmap()` with annotations and `cor` to correlate gene expression between each pair of samples.
 
 ```{r}
-# your code here
+# correlation function corr() takes matrix as an input. 
+
+dge3 <- cpm(dge$counts, log=TRUE, prior.count=1)
+corr <- cor(dge3)
+
+# make annotation columns
+set.seed(4)
+annot <- dge$samples[,c("Batch", "Infected", "hpi")]
+# be sure to assign rowname for the annotation table
+rownames(annot) <- colnames(corr)
+
+pheatmap(corr, annotation_col = annot, cluster_rows = TRUE )
+
 ```
 
 B. Among the variables `Batch`, `hpi`, and `Infected`, which one seems to be most strongly correlated with clusters in gene expression data? (1 pt)
 
   * Hint: Consider using 'cluster\_rows=TRUE' in `pheatmap()`.
 
+The infection Status (labeled as "infected") appears to have the strongest correlation with the clusters in gene expression data.All the clusters seem to be composed mostly of  
+
 C. There is a sample whose expression values do not correlate as highly with other samples of the same `hpi`, and in general. Identify this sample by its ID. (1 pt)
 
+** SRR1346028 **
 
 ### Question 7: Construct linear model for Differential expression analysis (4 POINTS)
 
@@ -180,19 +279,36 @@ A. First set up a model matrix with hours post infection (`hpi`), infection stat
   * Hint: use the `DGEList` object as input to voom, since you want to input raw counts here (voom will automatically transform to log2 CPM internally). 
 
 ```{r}
-# your code here
+#Setting up model design matrix
+modm <- model.matrix(~ hpi*Infected, data = dge$samples)
+head(modm) %>% kable()
+
+#estimate voom weights and plot Median-Variance trend
+vw <- voom(dge$counts, 
+           design = modm, plot = TRUE, span = 0.5)
+
+
 ```
 
 B. Use limma (`lmFit` and `eBayes`) to fit the linear model with the model matrix you just created. (1 pt)
 
 ```{r}
-# your code here
+
+# Fitting weighted limma
+lvfit <- lmFit(vw, model.matrix(~ hpi*Infected, data = dge$samples))
+#Empirical Bayes moderated variances 
+lvfitEb <- eBayes(lvfit) 
+lvfitEb
+
 ```
 
 C. Print the 10 top-ranked genes by adjusted p-value for the `hpi:InfectedY` coefficient using `topTable` (1 pt)
 
 ```{r}
-# your code here
+#use signif to round off floats
+signif(topTable(lvfitEb, coef= "hpi:InfectedY", sort.by= "p", number = 10),3) %>% 
+  kable()
+
 ```
 
 ### Question 8: Interpret model (2 POINTS)
@@ -200,10 +316,15 @@ C. Print the 10 top-ranked genes by adjusted p-value for the `hpi:InfectedY` coe
 For the gene CDC20 (Ensembl id ENSG00000117399), what is the numeric value of the coeffcient of the `hpi` term? What is the interpretation of this value in terms of the effect of time on expression? Be sure to include units and indicate which samples this applies to.   
 
 ```{r}
-# your code here
-```
+# If coef is supplied, then only shows the actual coefficeint will be omitted
+topTable(lvfitEb,number = Inf) %>% 
+  rownames_to_column(var = "gene")%>% 
+  filter(grepl("ENSG00000117399", gene)) %>% 
+  kable()
 
-    
+```
+* The coefficient of the hpi term is negative: $-0.0696882. For non-infected samples, with one unit of hpi change (in hour), the normalized expression of the _CDC20_gene (in log2(CPM+1)) will be decreased by 0.0696882. For infected samples, with one unit of hpi change (in hour), the normalized expression of the _CDC20_gene (in log2(CPM+1)) will be increased by 0.0177337. 
+     
 ### Question 9: Quantify the number of genes differentially expressed (3 POINTS)
 
 Using the linear model defined above, determine the number of genes differentially expressed by infection status *at any time point* at an FDR (use adjust.method = "fdr" in `topTable`) less than 0.05. 
@@ -211,16 +332,30 @@ Using the linear model defined above, determine the number of genes differential
   * Hint: in other words, test the null hypothesis that all coefficients involving infection status are equal to zero.
 
 ```{r}
-# your code here
+# look for genes where coefficients for infection status are statistically significant after adjusting for multi-testing
+
+topTable(lvfitEb, number = Inf, coef = c("hpi:InfectedY", "InfectedY"), adjust.method = "fdr", p.value = 0.05) %>% 
+  nrow()
+
 ```
+ 
 
 ### Question 10: Interpret the interaction term (3 POINTS)
 
-Explain what you are modeling with the interaction term. For a particular gene, what does a signifcant interaction term mean?
+Explain what you are modeling with the interaction term. For a particular gene, what does a significant interaction term mean?
 
+* With the interaction term hpi:infectedY, I am modeling the conditional effect of infection status conditioned on the effect of hpi. This means that the slope of hpi is dependent on the sample's infection status.  
 
+* A significant interaction term for a particular gene means that the effects of hpi on expression of this particular gene are different between an infected and uninfected sample.   
 
 ### **Bonus Question** (2 POINTS - extra credit)
 
 Compare your DE results to those obtained by [Li et al. (2016)](https://journals.plos.org/plospathogens/article?id=10.1371/journal.ppat.1005511). Discuss any discrepancies. List at least three explanations for these discrepancies.
+
+* The original paper included Batch as a covariate but we did not in this analysis. 
+* The original paper also included a filter for logFC when defining significance but we did not. 
+* The paper used Storey's q-values instead of BH/FDR for multiple testing correction. 
+* The paper adjusted for uninfected by subtracting counts rather than including infection status as a covariate as in our analysis here.
+* The paper treated hpi as a categorical variable and reported DE genes for each time point separately, while we considered hpi a continuous variable
+
 
