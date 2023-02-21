@@ -71,7 +71,7 @@ here.
 download_study(project = "SRP043008")
 ```
 
-    ## 2023-02-21 13:38:47 downloading file rse_gene.Rdata to SRP043008
+    ## 2023-02-21 13:41:03 downloading file rse_gene.Rdata to SRP043008
 
 ``` r
 load(file.path("SRP043008", "rse_gene.Rdata"))
@@ -680,11 +680,11 @@ discrepancies.
 
 There are lots of discrepancies between my and this paper’s DE results.
 
-1) The original paper adjusted for uninfected samples by subtracting
+1)The original paper adjusted for uninfected samples by subtracting
 counts rather than including infection status as a covariate as in my
 analysis
 
-2) The paper treated hpi as a categorical variable and reported DE genes
+2)The paper treated hpi as a categorical variable and reported DE genes
 for each time point separately, while we considered hpi a continuous
 variable
 
