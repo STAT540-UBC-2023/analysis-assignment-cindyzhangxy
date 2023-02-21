@@ -71,7 +71,7 @@ here.
 download_study(project = "SRP043008")
 ```
 
-    ## 2023-02-17 13:58:52 downloading file rse_gene.Rdata to SRP043008
+    ## 2023-02-21 12:19:10 downloading file rse_gene.Rdata to SRP043008
 
 ``` r
 load(file.path("SRP043008", "rse_gene.Rdata"))
@@ -146,17 +146,7 @@ and add this information to the `samples` slot of the `DGEList` object
 stored - analogous to `colData()` for a `SummarizedExperiment`). HINT:
 perform a join operation by sample id (beginning with “SRR”). (1 pt)
 
-``` r
-# Assess if the number of samples in metadata is the same as number of samples in the sample metadata in dge object which is corresponding to the samples in count in dge object
- 
-length(mdat$sample) - length(dge$samples$sample)
-```
-
     ## [1] 8
-
-``` r
-# 8 more samples were found in metadata without count information 
-```
 
 ``` r
 # the below line combines the metadata to dge$samples by keeping every record in dge$samples. Some of the samples metadata
@@ -169,9 +159,10 @@ are there? List out the levels for each factor. (1 pt)
 
 - 3 variables of interest are in the experimental design: developmental
   stage in (hours post infection or hpi), infection status and batch.
-  The hpi is categorical but in later step of this assignment we convert
-  it into a continuous variable. The infection status and batch are both
-  categorical variables with 2 and 5 levels, respectively.
+  The hpi can be considered as categorical with 6 levels, however, in
+  later step of this assignment we convert it into a \* continuous
+  variable\* . The infection status and batch are both categorical
+  variables. Infection status has 2 and batch has 5 levels.
 
 ``` r
 # Levels of infection status 
@@ -212,54 +203,7 @@ in at least 25% of samples. (1 pt)
 dge2 <- cpm(dge$counts)
 
 threshold <- dge2 >1
-
-head(threshold)  
-```
-
-    ##                    SRR1346026 SRR1346027 SRR1346028 SRR1346029 SRR1346030
-    ## ENSG00000000003.14       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000005.5       FALSE      FALSE      FALSE      FALSE      FALSE
-    ## ENSG00000000419.12       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000457.13       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000460.16       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000938.12      FALSE      FALSE      FALSE      FALSE      FALSE
-    ##                    SRR1346031 SRR1346032 SRR1346033 SRR1346034 SRR1346035
-    ## ENSG00000000003.14       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000005.5       FALSE      FALSE      FALSE      FALSE      FALSE
-    ## ENSG00000000419.12       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000457.13       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000460.16       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000938.12      FALSE      FALSE      FALSE      FALSE      FALSE
-    ##                    SRR1346036 SRR1346037 SRR1346038 SRR1346039 SRR1346040
-    ## ENSG00000000003.14       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000005.5       FALSE      FALSE      FALSE      FALSE      FALSE
-    ## ENSG00000000419.12       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000457.13       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000460.16       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000938.12      FALSE      FALSE      FALSE      FALSE      FALSE
-    ##                    SRR1346041 SRR1346042 SRR1346043 SRR1346044 SRR1346045
-    ## ENSG00000000003.14       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000005.5       FALSE      FALSE      FALSE      FALSE      FALSE
-    ## ENSG00000000419.12       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000457.13       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000460.16       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000938.12      FALSE      FALSE      FALSE      FALSE      FALSE
-    ##                    SRR1346046 SRR1346047 SRR1346049 SRR1346048 SRR1346050
-    ## ENSG00000000003.14       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000005.5       FALSE      FALSE      FALSE      FALSE      FALSE
-    ## ENSG00000000419.12       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000457.13       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000460.16       TRUE       TRUE       TRUE       TRUE       TRUE
-    ## ENSG00000000938.12      FALSE      FALSE      FALSE      FALSE      FALSE
-    ##                    SRR1346051 SRR1346052
-    ## ENSG00000000003.14       TRUE       TRUE
-    ## ENSG00000000005.5       FALSE      FALSE
-    ## ENSG00000000419.12       TRUE       TRUE
-    ## ENSG00000000457.13       TRUE       TRUE
-    ## ENSG00000000460.16       TRUE       TRUE
-    ## ENSG00000000938.12      FALSE      FALSE
-
-``` r
+ 
 # we would keep genes that have CPM >1 in at least 25%x27=6.75 of samples (i.e. 7 and above)
 
 keep <- rowSums(threshold) > 6.75 
@@ -393,6 +337,7 @@ per sample and lines coloured by sample). (1 pt)
 dge$log2cpm %>% 
   ggplot(aes(x = log2cpm, color = sample)) + 
   geom_density() +
+  labs(x="log2(CPM+1)", y = "Density") + 
   theme(axis.text.x = element_text(angle=90, hjust=1))
 ```
 
@@ -401,9 +346,10 @@ dge$log2cpm %>%
 D. Which sample stands out as different, in terms of the distribution of
 expression values, compared to the rest? (1 pt)
 
-The distribution of **SRR1346028** stands out in that it has a mean
-expression lower than other samples and more data found below -2.4 and
-less above 10 $log_2$(CPM+1)compared to other samples.
+The distribution of **SRR1346028** stands out as different from other
+distributions in that it has a relatively lower density around the range
+2 to 8 log2(CPM+1) and higher density around -5 to 0 log2(CPM+1)
+compared to other samples.
 
 ### Question 5: Single gene graphing (3 POINTS)
 
@@ -724,7 +670,8 @@ particular gene, what does a significant interaction term mean?
 
 - A significant interaction term for a particular gene means that the
   effects of hpi on expression of this particular gene are different
-  between an infected and uninfected sample.
+  between an infected and uninfected sample. Also, the interaction has a
+  significant effect on differential expression of this particular gene.
 
 ### **Bonus Question** (2 POINTS - extra credit)
 
@@ -733,14 +680,21 @@ al. (2016)](https://journals.plos.org/plospathogens/article?id=10.1371/journal.
 Discuss any discrepancies. List at least three explanations for these
 discrepancies.
 
-- The original paper included Batch as a covariate but we did not in
-  this analysis.
-- The original paper also included a filter for logFC when defining
-  significance but we did not.
-- The paper used Storey’s q-values instead of BH/FDR for multiple
-  testing correction.
-- The paper adjusted for uninfected by subtracting counts rather than
-  including infection status as a covariate as in our analysis here.
-- The paper treated hpi as a categorical variable and reported DE genes
-  for each time point separately, while we considered hpi a continuous
-  variable
+There are lots of discrepancies between my and this paper’s DE results.
+
+1)The original paper adjusted for uninfected samples by subtracting
+counts rather than including infection status as a covariate as in my
+analysis
+
+2)The paper treated hpi as a categorical variable and reported DE genes
+for each time point separately, while we considered hpi a continuous
+variable
+
+3)  The original paper included Batch as a covariate but I did not in
+    this analysis
+
+4)  The original paper also included a filter for logFC when defining
+    significance but I did not
+
+5)  The paper used Storey’s q-values instead of BH/FDR for multiple
+    testing correction
