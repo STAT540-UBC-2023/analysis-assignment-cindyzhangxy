@@ -222,7 +222,7 @@ A. Find the expression profile for the gene *OAS* (Ensembl ID ENSG00000089127). 
 
 ```{r}
 
-geneID <- grepl("ENSG00000089127", dge2$counts$gene_id)
+geneID <- grepl("ENSG00000089127", dge$log2cpm$gene)
  
 expressionDataForGene <- dge$log2cpm %>% 
   filter(gene == geneID)
@@ -323,7 +323,7 @@ topTable(lvfitEb,number = Inf) %>%
   kable()
 
 ```
-* The coefficient of the hpi term is negative: $-0.0696882. For non-infected samples, with one unit of hpi increase (in hour), the normalized expression of the _CDC20_gene (in log2(CPM+1)) will be decreased by 0.0696882. For infected samples, with one unit of hpi increase (in hour), the normalized expression of the _CDC20_gene (in log2(CPM+1)) will be increased by 0.0177337. 
+* The coefficient of the hpi term is negative: $-0.0696882. For non-infected samples, with one unit of hpi increase (in hour), the normalized expression of the _CDC20_ gene (in log2(CPM+1)) will be decreased by 0.0696882. For infected samples, with one unit of hpi increase (in hour), the normalized expression of the _CDC20_ gene (in log2(CPM+1)) will be increased by 0.0177337. 
      
 ### Question 9: Quantify the number of genes differentially expressed (3 POINTS)
 

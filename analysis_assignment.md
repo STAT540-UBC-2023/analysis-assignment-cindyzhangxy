@@ -71,7 +71,7 @@ here.
 download_study(project = "SRP043008")
 ```
 
-    ## 2023-02-21 12:19:10 downloading file rse_gene.Rdata to SRP043008
+    ## 2023-02-21 13:38:47 downloading file rse_gene.Rdata to SRP043008
 
 ``` r
 load(file.path("SRP043008", "rse_gene.Rdata"))
@@ -360,7 +360,7 @@ y-axis. Color the data points by infection status, and add in a
 regression line for each one. (2 pt)
 
 ``` r
-geneID <- "ENSG00000089127.12"
+geneID <- grepl("ENSG00000089127", dge$log2cpm$gene)
  
 expressionDataForGene <- dge$log2cpm %>% 
   filter(gene == geneID)
@@ -374,18 +374,17 @@ ggplot(data = expressionDataForGene, aes(x = hpi, y = log2cpm, color=Infected)) 
   labs(x = "hours post infection", y = "log2(CPM+1) gene expression counts")
 ```
 
-    ## `geom_smooth()` using formula = 'y ~ x'
-
 ![](analysis_assignment_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 
 B. Is there sign of interaction between infection status and hours post
 infection for **OAS**? Explain using what you observed in your graph
-from the previous question. (1 pt) \*\* Yes. there appears to be an
-interaction betwween infection status and hpi since the two regression
-lines are not parallel to each other. The log2(CPM + 1) normalized gene
-expression counts appear to increase with hours post infection in
-infected individuals while this not apparent in noninfected individuals
-\*\*
+from the previous question. (1 pt)
+
+**Yes. there appears to be an interaction between infection status and
+hpi since the two regression lines are not parallel to each other. The
+log2(CPM + 1) normalized gene expression counts appear to increase with
+hours post infection in infected individuals while this is no changing
+trend in uninfected samples**
 
 ### Question 6: How do the samples correlate with one another? (4 POINTS)
 
@@ -620,7 +619,6 @@ this value in terms of the effect of time on expression? Be sure to
 include units and indicate which samples this applies to.
 
 ``` r
-# If coef is supplied, then only shows the actual coefficeint will be omitted
 topTable(lvfitEb,number = Inf) %>% 
   rownames_to_column(var = "gene")%>% 
   filter(grepl("ENSG00000117399", gene)) %>% 
@@ -634,10 +632,10 @@ topTable(lvfitEb,number = Inf) %>%
 | ENSG00000117399.13 | -0.0696882 | 0.0247503 |     0.0177337 | 5.627441 | 55.03318 |       0 |         0 |
 
 - The coefficient of the hpi term is negative: \$-0.0696882. For
-  non-infected samples, with one unit of hpi change (in hour), the
-  normalized expression of the \_CDC20_gene (in log2(CPM+1)) will be
+  non-infected samples, with one unit of hpi increase (in hour), the
+  normalized expression of the *CDC20* gene (in log2(CPM+1)) will be
   decreased by 0.0696882. For infected samples, with one unit of hpi
-  change (in hour), the normalized expression of the \_CDC20_gene (in
+  increase (in hour), the normalized expression of the *CDC20* gene (in
   log2(CPM+1)) will be increased by 0.0177337.
 
 ### Question 9: Quantify the number of genes differentially expressed (3 POINTS)
@@ -652,7 +650,7 @@ FDR (use adjust.method = “fdr” in `topTable`) less than 0.05.
 ``` r
 # look for genes where coefficients for infection status are statistically significant after adjusting for multi-testing
 
-topTable(lvfitEb, number = Inf, coef = c("hpi:InfectedY", "InfectedY"), adjust.method = "fdr", p.value = 0.05) %>% 
+topTable(lvfitEb, number = Inf, coef = c("hpi:InfectedY", "InfectedY"), adjust.method = "fdr", p.value = 0.05) %>%
   nrow()
 ```
 
