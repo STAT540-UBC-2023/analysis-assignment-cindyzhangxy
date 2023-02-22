@@ -71,7 +71,7 @@ here.
 download_study(project = "SRP043008")
 ```
 
-    ## 2023-02-21 13:41:03 downloading file rse_gene.Rdata to SRP043008
+    ## 2023-02-21 16:22:36 downloading file rse_gene.Rdata to SRP043008
 
 ``` r
 load(file.path("SRP043008", "rse_gene.Rdata"))
@@ -294,7 +294,7 @@ A. The expression values are raw counts. Calculate TMM normalization
 factors (and add them to your `DGEList` object). (1 pt)
 
 ``` r
-dge$TMMNormalized.factors <-  calcNormFactors(dge$counts, method = "TMM")
+dge<-  calcNormFactors(dge)
 ```
 
 B. Examine the distribution of gene expression on the scale of
@@ -360,10 +360,8 @@ y-axis. Color the data points by infection status, and add in a
 regression line for each one. (2 pt)
 
 ``` r
-geneID <- grepl("ENSG00000089127", dge$log2cpm$gene)
- 
 expressionDataForGene <- dge$log2cpm %>% 
-  filter(gene == geneID)
+  filter(grepl("ENSG00000089127", gene))
 #integrate the sample metadata 
 
 expressionDataForGene <- expressionDataForGene %>% left_join(dge$samples[,c("sample", "hpi", "Infected")], by = "sample") 
@@ -373,6 +371,8 @@ ggplot(data = expressionDataForGene, aes(x = hpi, y = log2cpm, color=Infected)) 
   geom_smooth(method="lm")+
   labs(x = "hours post infection", y = "log2(CPM+1) gene expression counts")
 ```
+
+    ## `geom_smooth()` using formula = 'y ~ x'
 
 ![](analysis_assignment_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 

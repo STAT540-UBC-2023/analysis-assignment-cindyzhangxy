@@ -174,7 +174,8 @@ class(dge$samples$hpi)
 A. The expression values are raw counts. Calculate TMM normalization factors (and add them to your `DGEList` object). (1 pt)
 
 ```{r}
-dge$TMMNormalized.factors <-  calcNormFactors(dge$counts, method = "TMM")
+dge<-  calcNormFactors(dge)
+
 ```
 
 
@@ -222,10 +223,8 @@ A. Find the expression profile for the gene *OAS* (Ensembl ID ENSG00000089127). 
 
 ```{r}
 
-geneID <- grepl("ENSG00000089127", dge$log2cpm$gene)
- 
 expressionDataForGene <- dge$log2cpm %>% 
-  filter(gene == geneID)
+  filter(grepl("ENSG00000089127", gene))
 #integrate the sample metadata 
 
 expressionDataForGene <- expressionDataForGene %>% left_join(dge$samples[,c("sample", "hpi", "Infected")], by = "sample") 
