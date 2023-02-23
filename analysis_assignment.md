@@ -71,7 +71,7 @@ here.
 download_study(project = "SRP043008")
 ```
 
-    ## 2023-02-23 13:55:45 downloading file rse_gene.Rdata to SRP043008
+    ## 2023-02-23 13:58:09 downloading file rse_gene.Rdata to SRP043008
 
 ``` r
 load(file.path("SRP043008", "rse_gene.Rdata"))
@@ -655,6 +655,10 @@ topTable(lvfitEb, number = Inf, coef = c("hpi:InfectedY", "InfectedY"), adjust.m
 ```
 
     ## [1] 2006
+
+**There are 2006 genes differentially expressed by infection status at
+any time point at an FDR (use adjust.method = “fdr” in `topTable`) less
+than 0.05**
 
 ### Question 10: Interpret the interaction term (3 POINTS)
 
