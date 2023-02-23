@@ -174,7 +174,7 @@ class(dge$samples$hpi)
 A. The expression values are raw counts. Calculate TMM normalization factors (and add them to your `DGEList` object). (1 pt)
 
 ```{r}
-dge<-  calcNormFactors(dge)
+dge<-  calcNormFactors(dge, method="TMM")
 
 ```
 
@@ -284,7 +284,7 @@ modm <- model.matrix(~ hpi*Infected, data = dge$samples)
 head(modm) %>% kable()
 
 #estimate voom weights and plot Median-Variance trend
-vw <- voom(dge$counts, 
+vw <- voom(dge, 
            design = modm, plot = TRUE, span = 0.5)
 
 
@@ -306,7 +306,7 @@ C. Print the 10 top-ranked genes by adjusted p-value for the `hpi:InfectedY` coe
 
 ```{r}
 #use signif to round off floats
-signif(topTable(lvfitEb, coef= "hpi:InfectedY", sort.by= "p", number = 10),3) %>% 
+signif(topTable(lvfitEb, coef= "hpi:InfectedY", sort.by= "p", number = 10),3) %>%
   kable()
 
 ```
@@ -343,9 +343,9 @@ topTable(lvfitEb, number = Inf, coef = c("hpi:InfectedY", "InfectedY"), adjust.m
 
 Explain what you are modeling with the interaction term. For a particular gene, what does a significant interaction term mean?
 
-* With the interaction term hpi:infectedY, I am modeling the conditional effect of infection status conditioned on the effect of hpi. This means that the slope of hpi is dependent on the sample's infection status.  
+* With the interaction term hpi:infectedY, I am modeling the conditional effect of infection status conditioned on the effect of hpi. hpi:InfectedY is the difference in slopes between infected and noninfected individuals.   
 
-* A significant interaction term for a particular gene means that the effects of hpi on expression of this particular gene are different between an infected and uninfected sample. Also, the interaction has a significant effect on differential expression of this particular gene.   
+* A significant interaction term for a particular gene means that the effects of hpi on expression of this particular gene are different between an infected and uninfected sample.    
 
 ### **Bonus Question** (2 POINTS - extra credit)
 
