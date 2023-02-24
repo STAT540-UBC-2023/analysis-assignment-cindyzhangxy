@@ -71,7 +71,7 @@ here.
 download_study(project = "SRP043008")
 ```
 
-    ## 2023-02-23 13:58:09 downloading file rse_gene.Rdata to SRP043008
+    ## 2023-02-23 16:15:42 downloading file rse_gene.Rdata to SRP043008
 
 ``` r
 load(file.path("SRP043008", "rse_gene.Rdata"))
@@ -200,9 +200,9 @@ in at least 25% of samples. (1 pt)
 
 ``` r
 # make a filtered dge_count named dge2 to store the cpm normalized counts
-dge2 <- cpm(dge$counts)
+dge$cpm <- cpm(dge$counts)
 
-threshold <- dge2 >1
+threshold <- dge$cpm >1
  
 # we would keep genes that have CPM >1 in at least 25%x27=6.75 of samples (i.e. 7 and above)
 
@@ -347,9 +347,10 @@ D. Which sample stands out as different, in terms of the distribution of
 expression values, compared to the rest? (1 pt)
 
 The distribution of **SRR1346028** stands out as different from other
-distributions in that it has a relatively lower density around the range
-2 to 8 log2(CPM+1) and higher density around -5 to 0 log2(CPM+1)
-compared to other samples.
+distributions in that from density plot, it has a relatively lower
+density around the range 2 to 8 log2(CPM+1) and higher density around -5
+to 0 log2(CPM+1) compared to other samples. From the boxplot, it has a
+lower mean than other samples.
 
 ### Question 5: Single gene graphing (3 POINTS)
 

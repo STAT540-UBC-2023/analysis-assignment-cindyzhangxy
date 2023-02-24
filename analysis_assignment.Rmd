@@ -114,9 +114,9 @@ A. Remove lowly expressed genes by retaining genes that have CPM $>$ 1 in at lea
 
 ```{r}
 # make a filtered dge_count named dge2 to store the cpm normalized counts
-dge2 <- cpm(dge$counts)
+dge$cpm <- cpm(dge$counts)
 
-threshold <- dge2 >1
+threshold <- dge$cpm >1
  
 # we would keep genes that have CPM >1 in at least 25%x27=6.75 of samples (i.e. 7 and above)
 
@@ -215,7 +215,7 @@ dge$log2cpm %>%
 
 D. Which sample stands out as different, in terms of the distribution of expression values, compared to the rest? (1 pt)
 
-The distribution of **SRR1346028** stands out as different from other distributions in that it has a relatively lower density around the range 2 to 8 log2(CPM+1) and higher density around -5 to 0 log2(CPM+1) compared to other samples. 
+The distribution of **SRR1346028** stands out as different from other distributions in that from density plot, it has a relatively lower density around the range 2 to 8 log2(CPM+1) and higher density around -5 to 0 log2(CPM+1) compared to other samples. From the boxplot, it has a lower mean than other samples.  
 
 ### Question 5: Single gene graphing (3 POINTS)
 
