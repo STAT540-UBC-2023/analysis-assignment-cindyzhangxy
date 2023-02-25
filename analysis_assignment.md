@@ -1,6 +1,6 @@
 ‘Downstream’ Analysis: from counts to Differential Expression
 ================
-Cindy(Xiao Yu) Zhang
+Cindy(Xiao Yu)Zhang
 
 **Reminder:** When answering the questions, it is not sufficient to
 provide only code. Add explanatory text to interpret your results
@@ -71,7 +71,7 @@ here.
 download_study(project = "SRP043008")
 ```
 
-    ## 2023-02-23 16:15:42 downloading file rse_gene.Rdata to SRP043008
+    ## 2023-02-24 19:22:39 downloading file rse_gene.Rdata to SRP043008
 
 ``` r
 load(file.path("SRP043008", "rse_gene.Rdata"))
@@ -159,10 +159,11 @@ are there? List out the levels for each factor. (1 pt)
 
 - 3 variables of interest are in the experimental design: developmental
   stage in (hours post infection or hpi), infection status and batch.
-  The hpi can be considered as categorical with 6 levels, however, in
-  later step of this assignment we convert it into a \* continuous
-  variable\* . The infection status and batch are both categorical
-  variables. Infection status has 2 and batch has 5 levels.
+  The hpi could have been considered categorical with 6 levels, BUT in
+  later step of this assignment we convert it into a continuous variable
+  with the unit in hour. The infection status and batch are both
+  categorical variables. Infection status has 2 and batch has 5 levels
+  (Please refer to below for details on each level).
 
 ``` r
 # Levels of infection status 
@@ -199,14 +200,11 @@ A. Remove lowly expressed genes by retaining genes that have CPM $>$ 1
 in at least 25% of samples. (1 pt)
 
 ``` r
-# make a filtered dge_count named dge2 to store the cpm normalized counts
 dge$cpm <- cpm(dge$counts)
 
-threshold <- dge$cpm >1
- 
 # we would keep genes that have CPM >1 in at least 25%x27=6.75 of samples (i.e. 7 and above)
 
-keep <- rowSums(threshold) > 6.75 
+keep <- rowSums(dge$cpm >1) > 6.75 
 
 dge <- dge[keep,] 
 # dge now contains only the non-lowly expressed genes in their count table 
@@ -401,8 +399,8 @@ infection status (`Infected`) for each sample in the heatmap. (2 pt)
 ``` r
 # correlation function corr() takes matrix as an input. 
 
-dge3 <- cpm(dge$counts, log=TRUE, prior.count=1)
-corr <- cor(dge3)
+dge$log2cpm <- cpm(dge$counts, log=TRUE, prior.count=1)
+corr <- cor(dge$log2cpm)
 
 # make annotation columns
 set.seed(4)
@@ -458,9 +456,9 @@ head(modm) %>% kable()
 |           1 |   6 |         1 |             6 |
 
 ``` r
-#estimate voom weights and plot Median-Variance trend
-vw <- voom(dge, 
-           design = modm, plot = TRUE, span = 0.5)
+#estimate voom weights and plot Median-Variance trend. Here by using dge instead of dge$count we have taken into consideration TMM normalization.
+
+vw <- voom(dge, design = modm, plot= TRUE, span = 0.5)
 ```
 
 ![](analysis_assignment_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
@@ -667,9 +665,11 @@ Explain what you are modeling with the interaction term. For a
 particular gene, what does a significant interaction term mean?
 
 - With the interaction term hpi:infectedY, I am modeling the conditional
-  effect of infection status conditioned on the effect of hpi.
-  hpi:InfectedY is the difference in slopes between infected and
-  noninfected individuals.
+  effect of hpi conditioned on infection status. hpi:InfectedY is the
+  difference in slopes between infected and noninfected samples.
+  Specifically, it is corresponding to the change in gene expression
+  with each unit increment in hpi in infecected vs. non-infected
+  samples.
 
 - A significant interaction term for a particular gene means that the
   effects of hpi on expression of this particular gene are different
